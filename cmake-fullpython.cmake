@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-macro(create_virtualenv name requirements env_file python_src_dir venv_dir ena_virtualenv_dev_mode)
+macro(create_virtualenv name pybind11_install_dir requirements env_file python_src_dir cpython_src_dir venv_dir ena_virtualenv_dev_mode)
 
 find_package (Python COMPONENTS Interpreter Development)
 
@@ -141,26 +141,36 @@ add_custom_target(install-venv-${name}-requirements ALL
     COMMAND ${PYTHON_PIP} install -r ${requirements} --upgrade-strategy=only-if-needed
     DEPENDS ${PIP_INSTALL_TARTETS})
 
-# VsoraCpython package must be provided whith FindVsoraCpython.cmake
-#find_package(VsoraCpython)
-#if(NOT VsoraCpython_FOUND)
-#	message(FATAL_ERROR "Could not find `vsoraCpython`")
-#endif()
-
-#add_custom_target(${pythonlib_install} ALL
-#	COMMAND ${CMAKE_COMMAND} -E copy ${VSORA_CPYTHON_INSTALL_DIR}/*.so ${SITE_PACKAGES_DIR}
-#	DEPENDS install-venv-${name}-requirements)
-#
 ## env_file contains environement informations
 ## here we configure and install env_file into
 ## vsora package dir as a python module.
 ## vsora/__init__.py file import env_file 
 ## module while starting up to get all the 
 ## necessary env variables into the vsora namespace
-#configure_file (${env_file} env_file.conf)
-#
-#add_custom_target(env-file-install ALL
-#	COMMAND ${CMAKE_COMMAND} -E copy env_file.conf ${SITE_PACKAGES_DIR}/vsora_environ.py
-#	DEPENDS ${pythonlib_install})
+configure_file (${env_file} ${env_file})
+add_custom_target(env-file-install ALL
+	COMMAND ${CMAKE_COMMAND} -E copy ${env_file} ${SITE_PACKAGES_DIR}/${env_file})
+
+
+include(${pybind11_install_dir}/share/cmake/pybind11/pybind11Config.cmake)
+
+set(PYBIND11_PYTHON_VERSION 3.6)
+macro(add_pb11_app modulename src include)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(${modulename} MODULE ${src})
+  target_link_libraries(${modulename} PRIVATE pybind11::module)
+  set_target_properties(${modulename} PROPERTIES PREFIX "${PYTHON_MODULE_PREFIX}"
+                                    SUFFIX "${PYTHON_MODULE_EXTENSION}")
+
+  target_include_directories(${modulename} PUBLIC ${include})
+  set_source_files_properties(${src} PROPERTIES COMPILE_FLAGS "-std=gnu++11")
+
+  set_target_properties(${modulename} PROPERTIES LINK_FLAGS "-Wl,--disable-new-dtags")
+  add_custom_target(${pythonlib_install} ALL
+  	COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/*.so ${SITE_PACKAGES_DIR}
+  	DEPENDS ${modulename})
+endmacro()
+
+add_subdirectory(${cpython_src_dir})
 
 endmacro()
