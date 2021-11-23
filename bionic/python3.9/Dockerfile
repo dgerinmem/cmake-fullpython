@@ -44,3 +44,7 @@ ENV CROSS_COMPILATION_TARGET=${CROSS_COMPILATION_TARGET:-x86}
 ENV PB11_BUILD_DIR=/build/pybind11-${CROSS_COMPILATION_TARGET}
 ENV PB11_INSTALL_DIR=/install/
 RUN mkdir -p ${PB11_INSTALL_DIR} && mkdir -p ${PB11_BUILD_DIR} && cd ${PB11_BUILD_DIR} && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${PB11_INSTALL_DIR} ${PB11_SOURCE_DIR} && make install
+
+RUN pip3.9 install --user Cython
+# nympy dev mode
+RUN git clone https://github.com/numpy/numpy && cd numpy && git submodule update --init --recursive  && python3.9 setup.py install
